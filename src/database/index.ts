@@ -12,7 +12,7 @@ const dbConfig = {
   database: process.env.DB_NAME,
 };
 
-let connection: mysql.Connection;
+let connection: mysql.Connection | null = null;
 
 export const initDB = async () => {
   try {
@@ -29,19 +29,46 @@ export const initDB = async () => {
   }
 };
 
-const ensureSuperAdmin = async () => {
-  const [rows] = await connection.execute(
-    'SELECT * FROM users WHERE telegramId = ?',
-    [process.env.SUPER_ADMIN_ID]
-  );
+export const getConnection = async (): Promise<mysql.Connection> => {
+  if (!connection) {
+    throw new Error('Database not initialized');
+  }
 
-  if ((rows as any).length === 0) {
-    await connection.execute(
-      'INSERT INTO users (telegramId, role) VALUES (?, ?)',
-      [process.env.SUPER_ADMIN_ID, 'superadmin']
-    );
-    console.log('Super admin created');
+  // Проверяем, что соединение активно
+  try {
+    await connection.execute('SELECT 1');
+  } catch (error) {
+    console.log('Connection closed, reconnecting...');
+    connection = await mysql.createConnection(dbConfig);
+  }
+
+  return connection;
+};
+
+export const closeConnection = async () => {
+  if (connection) {
+    await connection.end();
+    connection = null;
   }
 };
 
-export const getConnection = () => connection;
+const ensureSuperAdmin = async () => {
+  if (!connection) return;
+
+  try {
+    const [rows] = await connection.execute(
+      'SELECT * FROM users WHERE telegramId = ?',
+      [process.env.SUPER_ADMIN_ID]
+    );
+
+    if ((rows as any).length === 0) {
+      await connection.execute(
+        'INSERT INTO users (telegramId, role) VALUES (?, ?)',
+        [process.env.SUPER_ADMIN_ID, 'superadmin']
+      );
+      console.log('Super admin created');
+    }
+  } catch (error) {
+    console.error('Error ensuring super admin:', error);
+  }
+};

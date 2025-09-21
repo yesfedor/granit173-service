@@ -1,19 +1,24 @@
 import express from 'express';
-import { initDB, getConnection } from '../../database';
+import { getConnection } from '../../database';
 import { Category, Product } from '../../database/models';
 
 const router = express.Router();
-initDB();
 
 // Health check
-router.get('/healthy', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+router.get('/healthy', async (req, res) => {
+  try {
+    const connection = await getConnection();
+    await connection.execute('SELECT 1');
+    res.json({ status: 'OK', timestamp: new Date().toISOString() });
+  } catch (error) {
+    res.status(500).json({ status: 'ERROR', error: 'Database not connected' });
+  }
 });
 
 // 1. Получение списка всех категорий
 router.get('/categories', async (req, res) => {
   try {
-    const connection = getConnection();
+    const connection = await getConnection();
     const [rows] = await connection.execute(
       'SELECT * FROM categories ORDER BY name'
     );
@@ -35,7 +40,7 @@ router.get('/categories', async (req, res) => {
 router.get('/categories/:slug', async (req, res) => {
   try {
     const { slug } = req.params;
-    const connection = getConnection();
+    const connection = await getConnection();
 
     const [rows] = await connection.execute(
       'SELECT * FROM categories WHERE slug = ?',
@@ -68,11 +73,11 @@ router.get('/categories/:slug', async (req, res) => {
 router.get('/categories/:slug/products', async (req, res) => {
   try {
     const { slug } = req.params;
-    const connection = getConnection();
+    const connection = await getConnection();
 
     // Сначала находим категорию по slug
     const [categoryRows] = await connection.execute(
-      'SELECT id, name, imageUrl FROM categories WHERE slug = ?',
+      'SELECT id FROM categories WHERE slug = ?',
       [slug]
     );
 
@@ -113,7 +118,7 @@ router.get('/categories/:slug/products', async (req, res) => {
 router.get('/products/:slug', async (req, res) => {
   try {
     const { slug } = req.params;
-    const connection = getConnection();
+    const connection = await getConnection();
 
     const [rows] = await connection.execute(
       'SELECT * FROM products WHERE slug = ?',
