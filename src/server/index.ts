@@ -25,13 +25,13 @@ export const startServer = async () => {
   app.use('/api', apiRoutes);
 
   process.on('SIGINT', async () => {
-    console.log('Shutting down...');
+    console.log('Server Shutting down...');
     await closeConnection();
     process.exit(0);
   });
 
   process.on('SIGTERM', async () => {
-    console.log('Shutting down...');
+    console.log('Server Shutting down...');
     await closeConnection();
     process.exit(0);
   });

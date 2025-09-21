@@ -1,7 +1,6 @@
 import { Telegraf } from 'telegraf';
-import { message } from 'telegraf/filters';
 import { config } from 'dotenv';
-import { initDB, getConnection } from '../database';
+import {initDB, getConnection, closeConnection} from '../database';
 import { setupCategoryHandlers } from './handlers/categoryHandlers';
 import { setupProductHandlers } from './handlers/productHandlers';
 
@@ -11,7 +10,7 @@ const bot = new Telegraf(process.env.BOT_TOKEN!);
 
 export const startBot = async () => {
   await initDB();
-  const connection = getConnection();
+  const connection = await getConnection();
 
   // Проверка прав доступа
   bot.use(async (ctx, next) => {
@@ -96,5 +95,14 @@ export const startBot = async () => {
   console.log('Bot started');
 };
 
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
+process.once('SIGINT', async () => {
+  console.log('Bot Shutting down...');
+  await closeConnection();
+  bot.stop('SIGINT')
+});
+
+process.once('SIGTERM', async () => {
+  console.log('Bot Shutting down...');
+  await closeConnection();
+  bot.stop('SIGTERM')
+});
