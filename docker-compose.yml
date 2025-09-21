@@ -1,0 +1,14 @@
+services:
+  app:
+    container_name: granit173-services
+    build: .
+    ports:
+      - "7401:3000"  # Bot port
+      - "7402:3001"  # Server port
+    volumes:
+      - ./public:/app/public
+    environment:
+      - NODE_ENV=development
+    env_file:
+      - .env
+    restart: unless-stopped

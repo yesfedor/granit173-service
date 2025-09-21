@@ -42,3 +42,10 @@ GET /api/categories/:slug/products
 ```http request
 GET /api/products/:slug
 ```
+
+
+# Hosting
+
+```shell
+docker-compose up -d
+```
