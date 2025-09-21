@@ -1,9 +1,10 @@
-import { Telegraf } from 'telegraf';
-import { Connection, RowDataPacket } from 'mysql2/promise';
-import { saveImageFromBuffer } from '../../utils/imageUpload';
-import { Product, Category } from '../../database/models';
+import {Context, Telegraf} from 'telegraf';
+import {Connection, RowDataPacket} from 'mysql2/promise';
+import {saveImageFromBuffer} from '../../utils/imageUpload';
+import {Product, Category} from '../../database/models';
 import * as path from 'path';
 import axios from 'axios';
+import {Message, Update} from "telegraf/typings/core/types/typegram";
 
 interface ProductState {
   name?: string;
@@ -43,7 +44,7 @@ export const setupProductHandlers = (bot: Telegraf, connection: Connection) => {
         reply_markup: {
           inline_keyboard: [
             ...keyboard,
-            [{ text: 'Назад', callback_data: 'main_menu' }]
+            [{text: 'Назад', callback_data: 'main_menu'}]
           ]
         }
       });
@@ -91,63 +92,6 @@ export const setupProductHandlers = (bot: Telegraf, connection: Connection) => {
     }
   });
 
-  // Обработка текстовых сообщений для создания товара
-  bot.on('text', async (ctx) => {
-    const state = productStates.get(ctx.from.id);
-    if (!state || !state.categoryId) return;
-
-    if (!state.name) {
-      state.name = ctx.message.text;
-      productStates.set(ctx.from.id, state);
-      return ctx.reply('Введите slug товара (латиница, без пробелов):');
-    }
-
-    if (!state.slug) {
-      state.slug = ctx.message.text;
-      productStates.set(ctx.from.id, state);
-      return ctx.reply('Введите описание товара:');
-    }
-
-    if (!state.description) {
-      state.description = ctx.message.text;
-      productStates.set(ctx.from.id, state);
-      return ctx.reply('Пришлите изображение для товара:');
-    }
-  });
-
-  // Обработка изображений для товаров
-  bot.on('photo', async (ctx) => {
-    const state = productStates.get(ctx.from.id);
-    if (!state || !state.description) return;
-
-    try {
-      const photo = ctx.message.photo[ctx.message.photo.length - 1];
-      const file = await ctx.telegram.getFile(photo.file_id);
-      const fileUrl = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${file.file_path}`;
-
-      // Скачиваем изображение
-      const response = await axios.get(fileUrl, { responseType: 'arraybuffer' });
-      const buffer = Buffer.from(response.data);
-
-      // Сохраняем изображение
-      const filename = path.basename(file.file_path || 'image.jpg');
-      state.imageUrl = await saveImageFromBuffer(buffer, filename);
-
-      // Сохраняем товар в БД
-      await connection.execute(
-        'INSERT INTO products (name, slug, description, imageUrl, categoryId) VALUES (?, ?, ?, ?, ?)',
-        [state.name, state.slug, state.description, state.imageUrl, state.categoryId]
-      );
-
-      productStates.delete(ctx.from.id);
-      await ctx.reply('Товар успешно создан!');
-
-    } catch (error) {
-      console.error('Error creating product:', error);
-      ctx.reply('Ошибка при создании товара');
-    }
-  });
-
   // Редактирование товара
   bot.action(/edit_product_(\d+)/, async (ctx) => {
     const productId = ctx.match[1];
@@ -178,8 +122,8 @@ export const setupProductHandlers = (bot: Telegraf, connection: Connection) => {
           reply_markup: {
             inline_keyboard: [
               [
-                { text: 'Удалить', callback_data: `delete_product_${product.id}` },
-                { text: 'Назад', callback_data: 'list_products' }
+                {text: 'Удалить', callback_data: `delete_product_${product.id}`},
+                {text: 'Назад', callback_data: 'list_products'}
               ]
             ]
           }
@@ -207,4 +151,61 @@ export const setupProductHandlers = (bot: Telegraf, connection: Connection) => {
       ctx.reply('Ошибка при удалении товара');
     }
   });
+
+  return {
+    async onText(ctx: Context<Update.MessageUpdate<Message.TextMessage>>) {
+      const state = productStates.get(ctx.from.id);
+      if (!state || !state.categoryId) return;
+
+      if (!state.name) {
+        state.name = ctx.message.text;
+        productStates.set(ctx.from.id, state);
+        return ctx.reply('Введите slug товара (латиница, без пробелов):');
+      }
+
+      if (!state.slug) {
+        state.slug = ctx.message.text;
+        productStates.set(ctx.from.id, state);
+        return ctx.reply('Введите описание товара:');
+      }
+
+      if (!state.description) {
+        state.description = ctx.message.text;
+        productStates.set(ctx.from.id, state);
+        return ctx.reply('Пришлите изображение для товара:');
+      }
+    },
+
+    async onPhoto(ctx: Context<Update.MessageUpdate<Message.PhotoMessage>>) {
+      const state = productStates.get(ctx.from.id);
+      if (!state || !state.description) return;
+
+      try {
+        const photo = ctx.message.photo[ctx.message.photo.length - 1];
+        const file = await ctx.telegram.getFile(photo.file_id);
+        const fileUrl = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${file.file_path}`;
+
+        // Скачиваем изображение
+        const response = await axios.get(fileUrl, {responseType: 'arraybuffer'});
+        const buffer = Buffer.from(response.data);
+
+        // Сохраняем изображение
+        const filename = path.basename(file.file_path || 'image.jpg');
+        state.imageUrl = await saveImageFromBuffer(buffer, filename);
+
+        // Сохраняем товар в БД
+        await connection.execute(
+          'INSERT INTO products (name, slug, description, imageUrl, categoryId) VALUES (?, ?, ?, ?, ?)',
+          [state.name, state.slug, state.description, state.imageUrl, state.categoryId]
+        );
+
+        productStates.delete(ctx.from.id);
+        await ctx.reply('Товар успешно создан!');
+
+      } catch (error) {
+        console.error('Error creating product:', error);
+        ctx.reply('Ошибка при создании товара');
+      }
+    }
+  }
 };

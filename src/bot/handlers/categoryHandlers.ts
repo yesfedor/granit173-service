@@ -1,9 +1,10 @@
-import { Telegraf } from 'telegraf';
-import { Connection, RowDataPacket } from 'mysql2/promise';
-import { saveImageFromBuffer } from '../../utils/imageUpload';
-import { Category } from '../../database/models';
+import {Context, Telegraf} from 'telegraf';
+import {Connection, RowDataPacket} from 'mysql2/promise';
+import {saveImageFromBuffer} from '../../utils/imageUpload';
+import {Category} from '../../database/models';
 import * as path from 'path';
 import axios from 'axios';
+import {Message, Update } from 'telegraf/typings/core/types/typegram';
 
 interface CategoryState {
   name?: string;
@@ -39,7 +40,7 @@ export const setupCategoryHandlers = (bot: Telegraf, connection: Connection) => 
         reply_markup: {
           inline_keyboard: [
             ...keyboard,
-            [{ text: 'Назад', callback_data: 'main_menu' }]
+            [{text: 'Назад', callback_data: 'main_menu'}]
           ]
         }
       });
@@ -53,63 +54,6 @@ export const setupCategoryHandlers = (bot: Telegraf, connection: Connection) => 
   bot.action('add_category', async (ctx) => {
     categoryStates.set(ctx.from.id, {});
     await ctx.editMessageText('Введите название категории:');
-  });
-
-  // Обработка текстовых сообщений для создания категории
-  bot.on('text', async (ctx) => {
-    const state = categoryStates.get(ctx.from.id);
-    if (!state) return;
-
-    if (!state.name) {
-      state.name = ctx.message.text;
-      categoryStates.set(ctx.from.id, state);
-      return ctx.reply('Введите slug (латиница, без пробелов):');
-    }
-
-    if (!state.slug) {
-      state.slug = ctx.message.text;
-      categoryStates.set(ctx.from.id, state);
-      return ctx.reply('Введите описание категории:');
-    }
-
-    if (!state.description) {
-      state.description = ctx.message.text;
-      categoryStates.set(ctx.from.id, state);
-      return ctx.reply('Пришлите изображение для категории:');
-    }
-  });
-
-  // Обработка изображений для категорий
-  bot.on('photo', async (ctx) => {
-    const state = categoryStates.get(ctx.from.id);
-    if (!state || !state.description) return;
-
-    try {
-      const photo = ctx.message.photo[ctx.message.photo.length - 1];
-      const file = await ctx.telegram.getFile(photo.file_id);
-      const fileUrl = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${file.file_path}`;
-
-      // Скачиваем изображение
-      const response = await axios.get(fileUrl, { responseType: 'arraybuffer' });
-      const buffer = Buffer.from(response.data);
-
-      // Сохраняем изображение
-      const filename = path.basename(file.file_path || 'image.jpg');
-      state.imageUrl = await saveImageFromBuffer(buffer, filename);
-
-      // Сохраняем категорию в БД
-      await connection.execute(
-        'INSERT INTO categories (name, slug, description, imageUrl) VALUES (?, ?, ?, ?)',
-        [state.name, state.slug, state.description, state.imageUrl]
-      );
-
-      categoryStates.delete(ctx.from.id);
-      await ctx.reply('Категория успешно создана!');
-
-    } catch (error) {
-      console.error('Error creating category:', error);
-      ctx.reply('Ошибка при создании категории');
-    }
   });
 
   // Редактирование категории
@@ -138,8 +82,8 @@ export const setupCategoryHandlers = (bot: Telegraf, connection: Connection) => 
           reply_markup: {
             inline_keyboard: [
               [
-                { text: 'Удалить', callback_data: `delete_category_${category.id}` },
-                { text: 'Назад', callback_data: 'list_categories' }
+                {text: 'Удалить', callback_data: `delete_category_${category.id}`},
+                {text: 'Назад', callback_data: 'list_categories'}
               ]
             ]
           }
@@ -167,4 +111,61 @@ export const setupCategoryHandlers = (bot: Telegraf, connection: Connection) => 
       ctx.reply('Ошибка при удалении категории');
     }
   });
+
+  return {
+    async onText(ctx: Context<Update.MessageUpdate<Message.TextMessage>>) {
+      const state = categoryStates.get(ctx.from.id);
+      if (!state) return;
+
+      if (!state.name) {
+        state.name = ctx.message.text;
+        categoryStates.set(ctx.from.id, state);
+        return ctx.reply('Введите slug (латиница, без пробелов):');
+      }
+
+      if (!state.slug) {
+        state.slug = ctx.message.text;
+        categoryStates.set(ctx.from.id, state);
+        return ctx.reply('Введите описание категории:');
+      }
+
+      if (!state.description) {
+        state.description = ctx.message.text;
+        categoryStates.set(ctx.from.id, state);
+        return ctx.reply('Пришлите изображение для категории:');
+      }
+    },
+
+    async onPhoto(ctx: Context<Update.MessageUpdate<Message.PhotoMessage>>) {
+      const state = categoryStates.get(ctx.from.id);
+      if (!state || !state.description) return;
+
+      try {
+        const photo = ctx.message.photo[ctx.message.photo.length - 1];
+        const file = await ctx.telegram.getFile(photo.file_id);
+        const fileUrl = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${file.file_path}`;
+
+        // Скачиваем изображение
+        const response = await axios.get(fileUrl, {responseType: 'arraybuffer'});
+        const buffer = Buffer.from(response.data);
+
+        // Сохраняем изображение
+        const filename = path.basename(file.file_path || 'image.jpg');
+        state.imageUrl = await saveImageFromBuffer(buffer, filename);
+
+        // Сохраняем категорию в БД
+        await connection.execute(
+          'INSERT INTO categories (name, slug, description, imageUrl) VALUES (?, ?, ?, ?)',
+          [state.name, state.slug, state.description, state.imageUrl]
+        );
+
+        categoryStates.delete(ctx.from.id);
+        await ctx.reply('Категория успешно создана!');
+
+      } catch (error) {
+        console.error('Error creating category:', error);
+        ctx.reply('Ошибка при создании категории');
+      }
+    }
+  }
 };

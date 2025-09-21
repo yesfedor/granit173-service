@@ -72,8 +72,25 @@ export const startBot = async () => {
   }));
 
   // Настройка обработчиков
-  setupCategoryHandlers(bot, connection);
-  setupProductHandlers(bot, connection);
+  const {
+    onText: categoryOnText,
+    onPhoto: categoryOnPhoto,
+  } = setupCategoryHandlers(bot, connection);
+
+  const {
+    onText: productOnText,
+    onPhoto: productOnPhoto,
+  } = setupProductHandlers(bot, connection);
+
+  bot.on('text', (ctx) => {
+    categoryOnText(ctx)
+    productOnText(ctx)
+  })
+
+  bot.on('photo', (ctx) => {
+    categoryOnPhoto(ctx)
+    productOnPhoto(ctx)
+  })
 
   bot.launch({ dropPendingUpdates: true });
   console.log('Bot started');
