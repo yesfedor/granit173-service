@@ -1,4 +1,4 @@
-# Granit173 Bot | Server
+# Granit173 Services
 
 ---
 
@@ -23,18 +23,22 @@ npm run start:server
 
 ### API предоставляет следующие эндпоинты:
 
+- Cписок всех категорий
 ```http request
 GET /api/categories
 ```
 
+- Категория по slug
 ```http request
-GET /api/categories/:slug - категория по slug
+GET /api/categories/:slug
 ```
 
+- Продукты по slug категории
 ```http request
-GET /api/categories/:slug/products - продукты по slug категории
+GET /api/categories/:slug/products
 ```
 
+- Продукт по slug
 ```http request
-GET /api/products/:slug - продукт по slug
+GET /api/products/:slug
 ```
