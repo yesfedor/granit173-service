@@ -13,7 +13,7 @@ export const startServer = async () => {
   app.use(express.json());
 
   // Статические файлы
-  app.use(express.static(path.join(__dirname, '../../public')));
+  app.use('/images', express.static(path.join(__dirname, '../../public/images')));
 
   // API маршруты
   app.use('/api', apiRoutes);
