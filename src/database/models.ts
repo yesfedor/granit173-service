@@ -14,6 +14,12 @@ export interface Category {
   imageUrl: string;
 }
 
+export interface Gallery {
+  id: number;
+  name: string;
+  imageUrl: string;
+}
+
 export interface Product {
   id: number;
   slug: string;

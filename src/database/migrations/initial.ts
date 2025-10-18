@@ -28,6 +28,14 @@ export const initialMigration = async (connection: Connection) => {
   `);
 
   await connection.execute(`
+    CREATE TABLE IF NOT EXISTS gallery (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      imageUrl VARCHAR(255) NOT NULL
+      )
+  `);
+
+  await connection.execute(`
     CREATE TABLE IF NOT EXISTS products (
       id INT AUTO_INCREMENT PRIMARY KEY,
       slug VARCHAR(255) NOT NULL UNIQUE,

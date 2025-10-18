@@ -1,6 +1,6 @@
 import express from 'express';
 import { getConnection } from '../../database';
-import { Category, Product } from '../../database/models';
+import {Category, Gallery, Product} from '../../database/models';
 
 const router = express.Router();
 
@@ -29,6 +29,27 @@ router.get('/categories', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching categories:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// 1. Получение списка изображений галереи
+router.get('/gallery', async (req, res) => {
+  try {
+    const connection = await getConnection();
+    const [rows] = await connection.execute(
+        'SELECT * FROM gallery ORDER BY name'
+    );
+
+    res.json({
+      success: true,
+      data: rows as Gallery[]
+    });
+  } catch (error) {
+    console.error('Error fetching gallery:', error);
     res.status(500).json({
       success: false,
       error: 'Internal server error'
