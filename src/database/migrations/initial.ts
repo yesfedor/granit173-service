@@ -35,6 +35,8 @@ export const initialMigration = async (connection: Connection) => {
       description TEXT NOT NULL,
       imageUrl VARCHAR(255) NOT NULL,
       categoryId INT NOT NULL,
+      size VARCHAR(255) NULL,  
+      price INT NULL,  
       FOREIGN KEY (categoryId) REFERENCES categories(id) ON DELETE CASCADE
     )
   `);

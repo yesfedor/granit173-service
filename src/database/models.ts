@@ -21,4 +21,6 @@ export interface Product {
   description: string;
   imageUrl: string;
   categoryId: number;
+  price: number | null;
+  size: string | null;
 }

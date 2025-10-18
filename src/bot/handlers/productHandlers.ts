@@ -12,6 +12,8 @@ interface ProductState {
   description?: string;
   imageUrl?: string;
   categoryId?: number;
+  price?: number;
+  size?: string;
 }
 
 const productStates = new Map<number, ProductState>();
@@ -117,6 +119,8 @@ export const setupProductHandlers = (bot: Telegraf, connection: Connection) => {
         `Товар: ${product.name}\n\n` +
         `Slug: ${product.slug}\n` +
         `Категория: ${(product as any).categoryName}\n` +
+        `Цена: ${product.price ?? '-'}\n` +
+        `Размер: ${product.size ?? '-'}\n` +
         `Описание: ${product.description}`,
         {
           reply_markup: {
@@ -166,6 +170,18 @@ export const setupProductHandlers = (bot: Telegraf, connection: Connection) => {
       if (!state.slug) {
         state.slug = ctx.message.text;
         productStates.set(ctx.from.id, state);
+        return ctx.reply('Введите стоимость товара:');
+      }
+
+      if (!state.price) {
+        state.price = Number(ctx.message.text);
+        productStates.set(ctx.from.id, state);
+        return ctx.reply('Введите размер товара:');
+      }
+
+      if (!state.size) {
+        state.size = ctx.message.text;
+        productStates.set(ctx.from.id, state);
         return ctx.reply('Введите описание товара:');
       }
 
@@ -195,8 +211,8 @@ export const setupProductHandlers = (bot: Telegraf, connection: Connection) => {
 
         // Сохраняем товар в БД
         await connection.execute(
-          'INSERT INTO products (name, slug, description, imageUrl, categoryId) VALUES (?, ?, ?, ?, ?)',
-          [state.name, state.slug, state.description, state.imageUrl, state.categoryId]
+          'INSERT INTO products (name, slug, description, imageUrl, categoryId, price, size) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [state.name, state.slug, state.description, state.imageUrl, state.categoryId, state.price, state.size]
         );
 
         productStates.delete(ctx.from.id);
