@@ -3,6 +3,7 @@ import { config } from 'dotenv';
 import {initDB, getConnection, closeConnection} from '../database';
 import { setupCategoryHandlers } from './handlers/categoryHandlers';
 import { setupProductHandlers } from './handlers/productHandlers';
+import {setupGalleryHandlers} from "./handlers/galleryHandlers";
 
 config();
 
@@ -34,7 +35,8 @@ export const startBot = async () => {
       reply_markup: {
         inline_keyboard: [
           [{ text: 'Управление категориями', callback_data: 'categories' }],
-          [{ text: 'Управление товарами', callback_data: 'products' }]
+          [{ text: 'Управление товарами', callback_data: 'products' }],
+          [{ text: 'Управление галереей', callback_data: 'gallery' }]
         ]
       }
     });
@@ -45,7 +47,8 @@ export const startBot = async () => {
     reply_markup: {
       inline_keyboard: [
         [{ text: 'Управление категориями', callback_data: 'categories' }],
-        [{ text: 'Управление товарами', callback_data: 'products' }]
+        [{ text: 'Управление товарами', callback_data: 'products' }],
+        [{ text: 'Управление галереей', callback_data: 'gallery' }]
       ]
     }
   }));
@@ -55,6 +58,16 @@ export const startBot = async () => {
       inline_keyboard: [
         [{ text: 'Список категорий', callback_data: 'list_categories' }],
         [{ text: 'Добавить категорию', callback_data: 'add_category' }],
+        [{ text: 'Назад', callback_data: 'main_menu' }]
+      ]
+    }
+  }));
+
+  bot.action('gallery', (ctx) => ctx.reply('Управление галереей', {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: 'Список изображений', callback_data: 'list_gallery' }],
+        [{ text: 'Добавить изображение', callback_data: 'add_gallery_item' }],
         [{ text: 'Назад', callback_data: 'main_menu' }]
       ]
     }
@@ -81,14 +94,21 @@ export const startBot = async () => {
     onPhoto: productOnPhoto,
   } = setupProductHandlers(bot, connection);
 
+  const {
+    onText: galleryOnText,
+    onPhoto: galleryOnPhoto,
+  } = setupGalleryHandlers(bot, connection);
+
   bot.on('text', (ctx) => {
     categoryOnText(ctx)
     productOnText(ctx)
+    galleryOnText(ctx)
   })
 
   bot.on('photo', (ctx) => {
     categoryOnPhoto(ctx)
     productOnPhoto(ctx)
+    galleryOnPhoto(ctx)
   })
 
   bot.launch({ dropPendingUpdates: true });

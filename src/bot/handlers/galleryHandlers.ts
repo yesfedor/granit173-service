@@ -6,16 +6,14 @@ import * as path from 'path';
 import axios from 'axios';
 import {Message, Update } from 'telegraf/typings/core/types/typegram';
 
-interface CategoryState {
+interface GalleryState {
   name?: string;
-  slug?: string;
-  description?: string;
   imageUrl?: string;
 }
 
-const categoryStates = new Map<number, CategoryState>();
+const galleryStates = new Map<number, GalleryState>();
 
-export const setupCategoryHandlers = (bot: Telegraf, connection: Connection) => {
+export const setupGalleryHandlers = (bot: Telegraf, connection: Connection) => {
   // Показать список изображений
   bot.action('list_gallery', async (ctx) => {
     try {
@@ -36,11 +34,12 @@ export const setupCategoryHandlers = (bot: Telegraf, connection: Connection) => 
         }
       ]);
 
-      await ctx.editMessageText('Галерея:', {
+      await ctx.editMessageText('Удалить изображение:', {
         reply_markup: {
           inline_keyboard: [
             ...keyboard,
-            [{text: 'Назад', callback_data: 'main_menu'}]
+            [{text: 'Назад', callback_data: 'gallery'}],
+            [{text: 'В главное меню', callback_data: 'main_menu'}],
           ]
         }
       });
@@ -52,7 +51,7 @@ export const setupCategoryHandlers = (bot: Telegraf, connection: Connection) => 
 
   // Начать процесс добавления изображения галереи
   bot.action('add_gallery_item', async (ctx) => {
-    categoryStates.set(ctx.from.id, {});
+    galleryStates.set(ctx.from.id, {});
     await ctx.editMessageText('Введите описание изображения:');
   });
 
@@ -62,11 +61,11 @@ export const setupCategoryHandlers = (bot: Telegraf, connection: Connection) => 
 
     try {
       await connection.execute(
-        'DELETE FROM galleryItems WHERE id = ?',
+        'DELETE FROM gallery WHERE id = ?',
         [categoryId]
       );
 
-      await ctx.editMessageText('Изображение успешно удалена');
+      await ctx.editMessageText('Изображение успешно удалено');
     } catch (error) {
       console.error('Error deleting category:', error);
       ctx.reply('Ошибка при удалении изображения');
@@ -75,19 +74,19 @@ export const setupCategoryHandlers = (bot: Telegraf, connection: Connection) => 
 
   return {
     async onText(ctx: Context<Update.MessageUpdate<Message.TextMessage>>) {
-      const state = categoryStates.get(ctx.from.id);
+      const state = galleryStates.get(ctx.from.id);
       if (!state) return;
 
       if (!state.name) {
         state.name = ctx.message.text;
-        categoryStates.set(ctx.from.id, state);
+        galleryStates.set(ctx.from.id, state);
         return ctx.reply('Загрузите изображение:');
       }
     },
 
     async onPhoto(ctx: Context<Update.MessageUpdate<Message.PhotoMessage>>) {
-      const state = categoryStates.get(ctx.from.id);
-      if (!state || !state.description) return;
+      const state = galleryStates.get(ctx.from.id);
+      if (!state || !state.name) return;
 
       try {
         const photo = ctx.message.photo[ctx.message.photo.length - 1];
@@ -104,13 +103,25 @@ export const setupCategoryHandlers = (bot: Telegraf, connection: Connection) => 
 
         // Сохраняем изображение в БД
         await connection.execute(
-          'INSERT INTO galleryItems (name, imageUrl) VALUES (?, ?)',
+          'INSERT INTO gallery (name, imageUrl) VALUES (?, ?)',
           [state.name, state.imageUrl]
         );
 
-        categoryStates.delete(ctx.from.id);
-        await ctx.reply('Изображение успешно создана!');
-
+        galleryStates.delete(ctx.from.id);
+        await ctx.reply('Изображение успешно создано!', {
+          reply_markup: {
+            inline_keyboard: [
+              [{
+                text: 'Назад',
+                callback_data: 'gallery'
+              }],
+              [{
+                text: 'В главное меню',
+                callback_data: 'main_menu'
+              }],
+            ]
+          }
+        });
       } catch (error) {
         console.error('Error creating category:', error);
         ctx.reply('Ошибка при создании изображения');
